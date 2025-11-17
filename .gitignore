@@ -1,0 +1,11 @@
+.venv/
+venv/
+.idea/
+.pytest_cache/
+__pycache__/
+.env
+*.log
+*.py[cod]
+*.json
+.python-version
+.qodo
