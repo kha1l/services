@@ -82,6 +82,22 @@ class Application(Base):
 
     tokens = relationship("Token", back_populates="application")
 
+class Token(Base):
+    __tablename__ = "tokens"
+    __table_args__ = {"schema": "special"}
+
+    id = Column(Integer, primary_key=True)
+    access = Column(String)
+    refresh = Column(String)
+    last_update = Column(TIMESTAMP)
+
+    account_id = Column(Integer, ForeignKey("special.accounts.id"))
+    application_id = Column(Integer, ForeignKey("special.applications.id"))
+
+    account = relationship("Account", back_populates="tokens")
+    application = relationship("Application", back_populates="tokens")
+    subscribes = relationship("Subscribe", back_populates="token", cascade="all, delete")
+
 class Subscribe(Base):
     __tablename__ = "subscribes"
     __table_args__ = {"schema": "special"}
