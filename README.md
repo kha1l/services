@@ -1,1 +1,31 @@
-Hello, brodyagi/
+- 📁 **services/** – общая директория сервисов
+  - 📁 **database/** – работа с БД
+    - 📄 `__init__.py`
+    - 📄 `engine.py`
+    - 📄 `models.py`
+    - 📄 `requests.py`
+  - 📁 **franchisee/** – обновление данных о франшизах
+    - 📄 `__init__.py`
+    - 📄 `franchisee_update.py`
+    - 📄 `main.py` - точка входа сервиса франшиз
+  - 📁 **subscribes/** – обновление данных о ресторанах и подписках
+    - 📄 `__init__.py`
+    - 📄 `main.py` - точка входа сервиса подписок
+    - 📄 `subscribes_update.py`
+  - 📁 **tokens/** – обновление токенов
+    - 📄 `__init__.py`
+    - 📄 `main.py` - точка входа сервиса токенов
+    - 📄 `tokens_update.py`
+  - 📁 **logs/** – логи работы сервисов
+    - 📄 `__main__.log`
+  - 📁 **static/** – схема + sql скрипт
+    - 📄 `default.drawio` – схема БД
+    - 📄 `special.sql` – sql скрипт создания схемы SPECIAL и таблиц
+  - 📄 `.env` – секретные ключи и настройки окружения
+  - 📄 `config.py` – конфигурация
+  - 📄 `docker-compose.yml` – разделение на сервисы с указанием времени
+  - 📄 `Dockerfile` – описание сборки образа
+  - 📄 `logger.py` – описан метод вызова логгера
+  - 📄 `.gitignore` – указано, что игнорируется git репозиторием
+  - 📄 `requirements.txt` – зависимости проекта
+  - 📄 `README.md` – документация проекта
