@@ -20,13 +20,12 @@ class Unit(Base):
     __tablename__ = "units"
     __table_args__ = {"schema": "special"}
 
-    uuid = Column(String, primary_key=True)
+    uuid = Column(String, ForeignKey("special.franchisee.uuid"), primary_key=True)
     name = Column(String(200))
     timezone = Column(Integer)
     latitude = Column(String(50))
     longitude = Column(String(50))
     country = Column(String(10))
-    franchisee_uuid = Column(String, ForeignKey("special.franchisee.uuid"))
 
     franchisee = relationship("Franchisee", back_populates="units")
     subscribes = relationship("Subscribe", back_populates="unit")

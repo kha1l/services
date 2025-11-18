@@ -12,10 +12,8 @@ CREATE TABLE special.units (
     latitude    VARCHAR(50),
     longitude   VARCHAR(50),
     country     VARCHAR(10),
-
-    franchisee_uuid VARCHAR,
     CONSTRAINT fk_units_franchisee
-        FOREIGN KEY (franchisee_uuid) REFERENCES special.franchisee(uuid)
+        FOREIGN KEY (uuid) REFERENCES special.franchisee(uuid)
 );
 
 CREATE TABLE special.users (

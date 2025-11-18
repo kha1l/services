@@ -1,5 +1,5 @@
 from sqlalchemy import select
-from database.models import Token, Application, Account, Franchisee
+from database.models import Token, Application, Account, Franchisee, Unit
 from datetime import datetime
 from iso3166 import countries
 
@@ -34,7 +34,7 @@ async def select_uuids(session):
     return [row[0] for row in result.all()]
 
 
-async def insert_unit(session, unit_data: dict):
+async def insert_unit_franchisee(session, unit_data: dict):
     country = countries.get(unit_data.get("countryCode")).alpha2.lower()
     new_unit = Franchisee(
         name=unit_data.get("name"),
@@ -45,8 +45,19 @@ async def insert_unit(session, unit_data: dict):
     session.add(new_unit)
     await session.commit()
 
-
-async def select_tokens(session):
-    stmt = select(Token)
+async def select_units(session):
+    stmt = select(Unit.uuid)
     result = await session.execute(stmt)
-    return result.all()
+    return [row[0] for row in result.all()]
+
+async def insert_unit(session, unit_data: dict):
+    new_unit = Unit(
+        name=unit_data.get("name"),
+        uuid=unit_data.get("id"),
+        country=unit_data.get("countryId").lower(),
+        latitude=unit_data.get("location")["latitude"],
+        longitude=unit_data.get("location")["longitude"],
+        timezone=unit_data.get("dateTimeInfo")["timeZoneShift"]
+    )
+    session.add(new_unit)
+    await session.commit()

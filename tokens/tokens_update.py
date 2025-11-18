@@ -11,7 +11,7 @@ class TokenRefresher:
         self,
         delay: float = 1.0,
         retry_limit: int = 5,
-        retry_delay: float = 30.0,
+        retry_delay: float = 60.0,
     ):
         self.delay = delay
         self.retry_limit = retry_limit
@@ -70,10 +70,10 @@ class TokenRefresher:
             await update_token(
                 session,
                 token,
-                resp["access_token"],
-                resp["refresh_token"]
+                resp.get("access_token"),
+                resp.get("refresh_token")
             )
 
-            logger.info(f"{token.id}\n{resp["access_token"]}\n{resp["refresh_token"]}")
+            logger.info(f"{token.id}\n{resp.get("access_token")}\n{resp.get("refresh_token")}")
 
             await asyncio.sleep(self.delay)
