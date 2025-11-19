@@ -51,6 +51,7 @@ class Account(Base):
     name = Column(String(100))
     properties = Column(String(100))
     active = Column(Boolean)
+    email = Column(String(150))
 
     users = relationship("UserAccount", back_populates="account", cascade="all, delete")
     tokens = relationship("Token", back_populates="account")

@@ -1,4 +1,4 @@
-from database.requests import select_all_tokens, select_units, insert_unit
+from database.requests import select_all_tokens, select_units, insert_unit, insert_subs
 import aiohttp
 import asyncio
 from database.models import Token
@@ -94,7 +94,7 @@ class SubscribeRefresher:
                 for unit in units_info:
                     if str(unit.get("id")) not in uuids:
                         await insert_unit(session, unit)
-
+                    await insert_subs(session, unit, alias, expires, token.id)
             except Exception as e:
                 logger.error(f"incorrect units for {token.id}: {e}")
             await asyncio.sleep(self.delay)

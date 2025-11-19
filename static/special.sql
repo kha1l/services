@@ -29,7 +29,8 @@ CREATE TABLE special.accounts (
     sub         VARCHAR(100),
     name        VARCHAR(100),
     properties  VARCHAR(100),
-    active      BOOLEAN
+    active      BOOLEAN,
+    email       VARCHAR(150)
 );
 
 CREATE TABLE special.user_account (

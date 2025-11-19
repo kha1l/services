@@ -1,5 +1,5 @@
 from sqlalchemy import select
-from database.models import Token, Application, Account, Franchisee, Unit
+from database.models import Token, Application, Account, Franchisee, Unit, Subscribe
 from datetime import datetime
 from iso3166 import countries
 
@@ -60,4 +60,14 @@ async def insert_unit(session, unit_data: dict):
         timezone=unit_data.get("dateTimeInfo")["timeZoneShift"]
     )
     session.add(new_unit)
+    await session.commit()
+
+async def insert_subs(session, unit: dict, alias, expires, token):
+    new_subs = Subscribe(
+        uuid=unit.get("id"),
+        token_id=token,
+        expires=expires,
+        alias=alias
+    )
+    session.add(new_subs)
     await session.commit()
