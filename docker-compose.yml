@@ -9,6 +9,8 @@ services:
       - ./config.py:/services/config.py
     command: >
       bash -c "
+      echo '25 22 * * * python /services/tokens/main.py >> /var/log/cron.log 2>&1' > /etc/cron.d/tokens &&
+      chmod 0644 /etc/cron.d/tokens &&
       echo '0 */6 * * * python /services/tokens/main.py >> /var/log/cron.log 2>&1' > /etc/cron.d/tokens &&
       chmod 0644 /etc/cron.d/tokens &&
       cron -f
@@ -22,7 +24,7 @@ services:
       - ./config.py:/services/config.py
     command: >
       bash -c "
-      echo '0 4 * * * python /services/subscribes/main.py >> /var/log/cron.log 2>&1' > /etc/cron.d/subscribes &&
+      echo '27 22 * * * python /services/subscribes/main.py >> /var/log/cron.log 2>&1' > /etc/cron.d/subscribes &&
       chmod 0644 /etc/cron.d/subscribes &&
       cron -f
       "
@@ -35,7 +37,7 @@ services:
       - ./config.py:/services/config.py
     command: >
       bash -c "
-      echo '0 5 * * * python /services/franchisee/main.py >> /var/log/cron.log 2>&1' > /etc/cron.d/franchisee &&
+      echo '29 22 * * * python /services/franchisee/main.py >> /var/log/cron.log 2>&1' > /etc/cron.d/franchisee &&
       chmod 0644 /etc/cron.d/franchisee &&
       cron -f
       "
