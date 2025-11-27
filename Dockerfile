@@ -1,11 +1,18 @@
 FROM python:3.11-slim
 
-RUN apt-get update && apt-get install -y cron
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/services
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends cron \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /services
 
-COPY . /services
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-RUN pip install --no-cache-dir -r requirements.txt || true
+COPY . /services
 
 CMD ["cron", "-f"]

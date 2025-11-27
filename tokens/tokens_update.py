@@ -74,6 +74,6 @@ class TokenRefresher:
                 resp.get("refresh_token")
             )
 
-            logger.info(f"{token.id}\n{resp.get("access_token")}\n{resp.get("refresh_token")}")
+            logger.info(f"{token.id}\n{resp.get('access_token')}\n{resp.get('refresh_token')}")
 
             await asyncio.sleep(self.delay)
