@@ -18,7 +18,7 @@ services:
       SHELL=/bin/sh
       PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       PYTHONPATH=/services
-      36 9 * * * root cd /services && python tokens/main.py >> /services/logs/cron_tokens.log 2>&1
+      0 */6 * * * root cd /services && python tokens/main.py >> /services/logs/cron_tokens.log 2>&1
       EOF
       chmod 0644 /etc/cron.d/tokens
       cron -f
@@ -37,7 +37,7 @@ services:
       SHELL=/bin/sh
       PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       PYTHONPATH=/services
-      27 21 * * * root cd /services && python subscribes/main.py >> /services/logs/cron_subscribes.log 2>&1
+      0 4 * * * root cd /services && python subscribes/main.py >> /services/logs/cron_subscribes.log 2>&1
       EOF
       chmod 0644 /etc/cron.d/subscribes
       cron -f
@@ -56,7 +56,7 @@ services:
       SHELL=/bin/sh
       PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
       PYTHONPATH=/services
-      28 21 * * * root cd /services && python franchisee/main.py >> /services/logs/cron_franchisee.log 2>&1
+      0 5 * * * root cd /services && python franchisee/main.py >> /services/logs/cron_franchisee.log 2>&1
       EOF
       chmod 0644 /etc/cron.d/franchisee
       cron -f

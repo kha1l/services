@@ -26,7 +26,7 @@ class FranchiseeRefresher:
         uuids = await select_uuids(session)
         tokens = await select_all_tokens(session)
         for token in tokens:
-            account = tokens.account
+            account = token.account
             domain = account.properties.split("/")[0]
             franc_data = await get_franchisee(token.access, domain)
             if franc_data:

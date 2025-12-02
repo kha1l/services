@@ -63,11 +63,22 @@ async def insert_unit(session, unit_data: dict):
     await session.commit()
 
 async def insert_subs(session, unit: dict, alias, expires, token):
-    new_subs = Subscribe(
-        uuid=unit.get("id"),
-        token_id=token,
-        expires=expires,
-        alias=alias
-    )
-    session.add(new_subs)
+    uuid = unit.get("id")
+    select_stmt = select(Subscribe).where(
+        Subscribe.uuid == uuid,
+                    Subscribe.token_id == token
+        )
+    result = await session.execute(select_stmt)
+    existing_subs = result.scalars().first()
+    if existing_subs:
+        existing_subs.expires = expires
+        existing_subs.alias = alias
+    else:
+        new_subs = Subscribe(
+            uuid=uuid,
+            token_id=token,
+            expires=expires,
+            alias=alias
+        )
+        session.add(new_subs)
     await session.commit()

@@ -3,6 +3,7 @@ import aiohttp
 import asyncio
 from database.models import Token
 from logger import get_logger
+from datetime import datetime
 
 logger = get_logger(__name__)
 
@@ -71,7 +72,7 @@ class SubscribeRefresher:
         tokens = await select_all_tokens(session)
 
         for token in tokens:
-            account = tokens.account
+            account = token.account
             domain = account.properties.split("/")[0]
             try:
                 resp = await self._refresh_subs(token, domain)
@@ -84,12 +85,17 @@ class SubscribeRefresher:
                 sub = subs[0]
                 units = sub.get("units")
                 alias = sub.get("tariffAlias")
-                expires = sub.get("expiresAt")
+                expires_str = sub.get("expiresAt")
             except IndexError as e:
                 logger.error(f"No active subscribes for {token.id}: {e}")
                 continue
             units_response = await self._refresh_units(token, account.properties, units)
             units_info = units_response.get("stores", [])
+            try:
+                expires = datetime.strptime(expires_str, "%Y-%m-%dT%H:%M:%S")
+            except Exception as e:
+                logger.error(f"not convert expiresAt {token.id}: {e}")
+                expires = None
             try:
                 for unit in units_info:
                     if str(unit.get("id")) not in uuids:

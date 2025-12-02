@@ -11,9 +11,7 @@ CREATE TABLE special.units (
     timezone    INTEGER,
     latitude    VARCHAR(50),
     longitude   VARCHAR(50),
-    country     VARCHAR(10),
-    CONSTRAINT fk_units_franchisee
-        FOREIGN KEY (uuid) REFERENCES special.franchisee(uuid)
+    country     VARCHAR(10)
 );
 
 CREATE TABLE special.users (
@@ -34,9 +32,9 @@ CREATE TABLE special.accounts (
 );
 
 CREATE TABLE special.user_account (
+	id serial primary key,
     user_id     INTEGER NOT NULL,
-    account_id  INTEGER NOT NULL,
-    PRIMARY KEY (user_id, account_id),
+    account_id  INTEGER NOT null,
 
     CONSTRAINT fk_user_account_user
         FOREIGN KEY (user_id) REFERENCES special.users(id) ON DELETE CASCADE,
@@ -72,6 +70,7 @@ CREATE TABLE special.tokens (
 );
 
 CREATE TABLE special.subscribes (
+    id          SERIAL NOT NULL,
     uuid        VARCHAR NOT NULL,
     token_id    INTEGER NOT NULL,
     expires     TIMESTAMP,
