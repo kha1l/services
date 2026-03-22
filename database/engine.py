@@ -1,13 +1,35 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from config import Config, load_config
+"""SQLAlchemy engine и фабрика async sessions."""
 
-cfg: Config = load_config()
+from __future__ import annotations
 
-engine = create_async_engine(f'postgresql+asyncpg://'
-                             f'{cfg.dbase.user}:'
-                             f'{cfg.dbase.password}@'
-                             f'{cfg.dbase.host}:'
-                             f'5432/'
-                             f'{cfg.dbase.name}')
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-session_maker = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+from config import database_settings
+
+
+def _normalize_async_url(url: str) -> str:
+    if url.startswith("postgresql+asyncpg://"):
+        return url
+    if url.startswith("postgresql://"):
+        return url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    return url
+
+
+def build_engine(url: str, *, echo: bool = False, pool_pre_ping: bool = True):
+    """Создает async SQLAlchemy engine для указанного URL."""
+    return create_async_engine(
+        _normalize_async_url(url),
+        echo=echo,
+        pool_pre_ping=pool_pre_ping,
+        future=True,
+    )
+
+
+def build_sessionmaker(engine):
+    """Создает async sessionmaker поверх переданного engine."""
+    return async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
+
+
+_cfg = database_settings()
+engine = build_engine(_cfg.url, echo=_cfg.echo, pool_pre_ping=_cfg.pool_pre_ping)
+session_maker = build_sessionmaker(engine)

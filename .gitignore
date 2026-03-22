@@ -9,3 +9,4 @@ __pycache__/
 *.json
 .python-version
 .qodo
+.dagster_home/

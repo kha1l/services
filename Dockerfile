@@ -1,18 +1,15 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/services
+    PYTHONUNBUFFERED=1
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends cron \
-    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
 
-WORKDIR /services
-
-COPY requirements.txt .
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . /services
+COPY . .
 
-CMD ["cron", "-f"]
+EXPOSE 4000
+
+CMD ["dagster", "api", "grpc", "-m", "defs", "-h", "0.0.0.0", "-p", "4000"]
