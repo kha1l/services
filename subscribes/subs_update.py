@@ -9,7 +9,7 @@ from database.requests import (
     insert_subs,
     insert_unit,
     resolve_service_alert,
-    select_account_chat_ids,
+    select_account_recipients,
     select_all_tokens,
     select_subscribe_snapshot_for_token,
     select_subscribe_uuids_for_token,
@@ -58,23 +58,27 @@ class SubscribeRefresher:
         return parts[0], parts[1], parts[2]
 
     async def _publish_message(self, session, token: Token, text: str) -> None:
-        """Отправляет Telegram-сообщение всем пользователям аккаунта."""
-        chat_ids = await select_account_chat_ids(session, token.account_id)
-        if not chat_ids:
-            logger.warning(f"No Telegram recipients for subscribe token {token.id}")
+        """Отправляет сервисное сообщение всем пользователям аккаунта."""
+        recipients = await select_account_recipients(session, token.account_id)
+        if not recipients:
+            logger.warning(f"No recipients for subscribe token {token.id}")
             return
 
-        for chat_id in chat_ids:
+        for recipient in recipients:
             try:
                 await self.rabbitmq.publish_async(
                     build_payload(
-                        chat_id=chat_id,
+                        chat_id=recipient.chat_id,
                         post=None,
                         text=text,
-                    )
+                    ),
+                    platform=recipient.platform,
                 )
             except Exception as exc:
-                logger.error(f"Failed to publish subscribe message for chat {chat_id}: {exc}")
+                logger.error(
+                    f"Failed to publish subscribe message for chat {recipient.chat_id}"
+                    f" platform={recipient.platform}: {exc}"
+                )
 
     async def _handle_failure(self, session, token: Token, error_text: str) -> None:
         """Фиксирует алерт сбоя подписок без деактивации аккаунта и удаления токена."""

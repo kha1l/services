@@ -11,7 +11,7 @@ from database.requests import (
     mark_service_alert_notified,
     resolve_service_alert,
     set_account_active,
-    select_account_chat_ids,
+    select_account_recipients,
     select_all_tokens,
     touch_service_alert,
     update_token,
@@ -38,23 +38,27 @@ class TokenRefresher:
         self.delay = delay
 
     async def _publish_message(self, session, token: Token, text: str) -> None:
-        """Отправляет уведомление всем Telegram-получателям аккаунта."""
-        chat_ids = await select_account_chat_ids(session, token.account_id)
-        if not chat_ids:
-            logger.warning(f"No Telegram recipients for token {token.id}")
+        """Отправляет уведомление всем получателям аккаунта."""
+        recipients = await select_account_recipients(session, token.account_id)
+        if not recipients:
+            logger.warning(f"No recipients for token {token.id}")
             return
 
-        for chat_id in chat_ids:
+        for recipient in recipients:
             try:
                 await self.rabbitmq.publish_async(
                     build_payload(
-                        chat_id=chat_id,
+                        chat_id=recipient.chat_id,
                         post=None,
                         text=text,
-                    )
+                    ),
+                    platform=recipient.platform,
                 )
             except Exception as exc:
-                logger.error(f"Failed to publish token message for chat {chat_id}: {exc}")
+                logger.error(
+                    f"Failed to publish token message for chat {recipient.chat_id}"
+                    f" platform={recipient.platform}: {exc}"
+                )
 
     async def _handle_failure(self, session, token: Token, error_text: str) -> None:
         """Обновляет алерт токена, при необходимости деактивирует аккаунт и удаляет stale токен."""

@@ -62,6 +62,7 @@ class RabbitMQPublisher:
 
     url: str
     queue: str
+    max_queue: str
     exchange: str
     routing_key: str
     exchange_type: str
@@ -78,6 +79,7 @@ class RabbitMQPublisher:
         return cls(
             url=cfg.url,
             queue=cfg.queue,
+            max_queue=cfg.max_queue,
             exchange=cfg.exchange,
             routing_key=cfg.routing_key,
             exchange_type=cfg.exchange_type,
@@ -85,14 +87,14 @@ class RabbitMQPublisher:
             enabled=cfg.enabled,
         )
 
-    async def publish_async(self, payload: dict[str, Any]) -> None:
+    async def publish_async(self, payload: dict[str, Any], *, platform: str | None = None) -> None:
         validate_payload(payload)
         if not self.enabled:
             return
 
         for attempt in range(1, PUBLISH_RETRY_ATTEMPTS + 1):
             try:
-                await self._publish_with_open_transport(payload)
+                await self._publish_with_open_transport(payload, platform=platform)
                 return
             except Exception:
                 if attempt >= PUBLISH_RETRY_ATTEMPTS:
@@ -100,9 +102,10 @@ class RabbitMQPublisher:
                 await self._reset_transport()
                 await asyncio.sleep(min(2 ** (attempt - 1), 4))
 
-    async def _publish_with_open_transport(self, payload: dict[str, Any]) -> None:
+    async def _publish_with_open_transport(self, payload: dict[str, Any], *, platform: str | None = None) -> None:
         aio_pika = _import_aio_pika()
-        await self._ensure_transport()
+        queue_name = self._resolve_queue(platform)
+        await self._ensure_transport(queue_name)
 
         message = aio_pika.Message(
             body=json.dumps(payload).encode("utf-8"),
@@ -112,12 +115,12 @@ class RabbitMQPublisher:
         )
 
         if self.exchange:
-            routing_key = self.routing_key or self.queue
+            routing_key = self.routing_key or queue_name
             await self._exchange_obj.publish(message, routing_key=routing_key)
         else:
-            await self._channel.default_exchange.publish(message, routing_key=self.queue)
+            await self._channel.default_exchange.publish(message, routing_key=queue_name)
 
-    async def _ensure_transport(self) -> None:
+    async def _ensure_transport(self, queue_name: str | None = None) -> None:
         aio_pika = _import_aio_pika()
         lock = self._get_transport_lock()
 
@@ -128,13 +131,16 @@ class RabbitMQPublisher:
                 and self._channel is not None
                 and not self._channel.is_closed
             ):
+                if queue_name:
+                    await self._channel.declare_queue(queue_name, durable=self.durable)
                 return
 
             self._connection = await aio_pika.connect_robust(self.url)
             self._channel = await self._connection.channel()
 
-            if self.queue:
-                await self._channel.declare_queue(self.queue, durable=self.durable)
+            declare_queue_name = queue_name or self.queue
+            if declare_queue_name:
+                await self._channel.declare_queue(declare_queue_name, durable=self.durable)
 
             if self.exchange:
                 self._exchange_obj = await self._channel.declare_exchange(
@@ -162,6 +168,11 @@ class RabbitMQPublisher:
         if self._transport_lock is None:
             self._transport_lock = asyncio.Lock()
         return self._transport_lock
+
+    def _resolve_queue(self, platform: str | None) -> str:
+        if str(platform or "").strip().lower() == "max":
+            return self.max_queue
+        return self.queue
 
 
 def _import_aio_pika():

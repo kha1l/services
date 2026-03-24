@@ -1,6 +1,7 @@
 """Набор SQLAlchemy-запросов для job `servises`."""
 
 from datetime import datetime
+from dataclasses import dataclass
 
 from sqlalchemy import delete, exists, select, text
 
@@ -163,19 +164,44 @@ async def delete_subscribes_and_orphan_units(session, token_id: int, unit_uuids:
 
 
 async def select_account_chat_ids(session, account_id: int) -> list[int]:
-    """Возвращает Telegram chat_id всех пользователей, связанных с аккаунтом."""
+    """Возвращает chat_id всех пользователей, связанных с аккаунтом."""
+    rows = await select_account_recipients(session, account_id)
+    return [row.chat_id for row in rows]
+
+
+@dataclass(frozen=True)
+class AccountRecipient:
+    """Получатель сервисного уведомления по аккаунту."""
+
+    chat_id: int
+    platform: str
+
+
+async def select_account_recipients(session, account_id: int) -> list[AccountRecipient]:
+    """Возвращает chat_id + platform всех пользователей, связанных с аккаунтом."""
     stmt = (
-        select(User.platform_id)
+        select(User.platform_id, User.platform)
         .join(UserAccount, UserAccount.user_id == User.id)
         .where(
             UserAccount.account_id == account_id,
-            User.platform == "telegram",
             User.platform_id.is_not(None),
+            User.platform.in_(("telegram", "max")),
         )
         .distinct()
     )
     result = await session.execute(stmt)
-    return [int(row[0]) for row in result.all() if row[0] is not None]
+    recipients: list[AccountRecipient] = []
+    for platform_id, platform in result.all():
+        if platform_id is None:
+            continue
+        normalized_platform = str(platform or "telegram").strip().lower() or "telegram"
+        recipients.append(
+            AccountRecipient(
+                chat_id=int(platform_id),
+                platform=normalized_platform,
+            )
+        )
+    return recipients
 
 
 async def ensure_service_alerts_table(session) -> None:

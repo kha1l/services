@@ -81,6 +81,7 @@ class RabbitMQSettings:
 
     url: str
     queue: str
+    max_queue: str
     exchange: str
     routing_key: str
     exchange_type: str
@@ -159,6 +160,7 @@ def rabbitmq_settings() -> RabbitMQSettings:
     return RabbitMQSettings(
         url=_env("RABBIT_URL", "amqp://guest:guest@localhost:5672/") or "amqp://guest:guest@localhost:5672/",
         queue=_env("RABBIT_QUEUE", "aida") or "aida",
+        max_queue=_env("RABBIT_QUEUE_MAX", "aida-max") or "aida-max",
         exchange=_env("RABBIT_EXCHANGE", "") or "",
         routing_key=_env("RABBIT_ROUTING_KEY", "") or "",
         exchange_type=_env("RABBIT_EXCHANGE_TYPE", "direct") or "direct",
