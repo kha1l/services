@@ -9,6 +9,8 @@ from subscribes.jobs import subscribes_job
 from subscribes.schedulers import subscribes_schedule
 from tokens.jobs import tokens_job
 from tokens.schedulers import tokens_schedule
+from webapp_reports.jobs import webapp_report_cleanup_job
+from webapp_reports.schedulers import webapp_report_cleanup_schedule
 
 
 defs = Definitions(
@@ -16,6 +18,7 @@ defs = Definitions(
         franchisee_job,
         subscribes_job,
         tokens_job,
+        webapp_report_cleanup_job,
     ],
     schedules=[
         schedule
@@ -23,6 +26,7 @@ defs = Definitions(
             franchisee_schedule,
             subscribes_schedule,
             tokens_schedule,
+            webapp_report_cleanup_schedule,
         )
         if schedule is not None
     ],

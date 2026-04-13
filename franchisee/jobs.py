@@ -5,7 +5,7 @@ from dagster import job
 from .ops import franchisee_op
 
 
-@job
+@job(description="Сервисное обновление справочника франшиз.")
 def franchisee_job():
     """Запускает обновление справочника франшиз."""
     franchisee_op()

@@ -5,7 +5,7 @@ from dagster import job
 from .ops import tokens_op
 
 
-@job
+@job(description="Сервисное обновление и синхронизация токенов доступа.")
 def tokens_job():
     """Запускает обновление токенов."""
     tokens_op()

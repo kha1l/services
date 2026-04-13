@@ -89,6 +89,13 @@ class RabbitMQSettings:
     enabled: bool
 
 
+@dataclass(frozen=True)
+class WebAppReportCleanupSettings:
+    """Настройки очистки временных WebApp-отчетов."""
+
+    grace_hours: int
+
+
 def load_config(path: str | None = None) -> Config:
     """Собирает обратноссовместимый Config из env."""
     env = Env()
@@ -166,4 +173,11 @@ def rabbitmq_settings() -> RabbitMQSettings:
         exchange_type=_env("RABBIT_EXCHANGE_TYPE", "direct") or "direct",
         durable=_env_bool("RABBIT_DURABLE", True),
         enabled=_env_bool("RABBIT_ENABLED", True),
+    )
+
+
+def webapp_report_cleanup_settings() -> WebAppReportCleanupSettings:
+    """Читает настройки очистки временных WebApp-результатов."""
+    return WebAppReportCleanupSettings(
+        grace_hours=_env_int("WEBAPP_REPORT_CLEANUP_GRACE_HOURS", 12),
     )
