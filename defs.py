@@ -9,8 +9,8 @@ from subscribes.jobs import subscribes_job
 from subscribes.schedulers import subscribes_schedule
 from tokens.jobs import tokens_job
 from tokens.schedulers import tokens_schedule
-from webapp_reports.jobs import webapp_report_cleanup_job
-from webapp_reports.schedulers import webapp_report_cleanup_schedule
+from drop_orders_webapp.jobs import webapp_report_cleanup_job
+from drop_orders_webapp.schedulers import webapp_report_cleanup_schedule
 
 
 defs = Definitions(
