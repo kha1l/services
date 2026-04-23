@@ -94,6 +94,7 @@ class WebAppReportCleanupSettings:
     """Настройки очистки временных WebApp-отчетов."""
 
     grace_hours: int
+    metrics_ttl_minutes: int
 
 
 def load_config(path: str | None = None) -> Config:
@@ -179,5 +180,6 @@ def rabbitmq_settings() -> RabbitMQSettings:
 def webapp_report_cleanup_settings() -> WebAppReportCleanupSettings:
     """Читает настройки очистки временных WebApp-результатов."""
     return WebAppReportCleanupSettings(
-        grace_hours=_env_int("WEBAPP_REPORT_CLEANUP_GRACE_HOURS", 12),
+        grace_hours=_env_int("WEBAPP_REPORT_CLEANUP_GRACE_HOURS", 0),
+        metrics_ttl_minutes=_env_int("WEBAPP_REPORT_METRICS_TTL_MINUTES", 15),
     )

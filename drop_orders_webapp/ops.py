@@ -8,9 +8,10 @@ from config import webapp_report_cleanup_settings
 
 @op(required_resource_keys={"db"})
 async def webapp_report_cleanup_op(context) -> None:
-    """Удаляет результаты WebApp-отчетов, истекшие больше чем на grace_hours."""
+    """Удаляет результаты WebApp-отчетов после истечения TTL."""
     settings = webapp_report_cleanup_settings()
     grace_hours = max(0, settings.grace_hours)
+    metrics_ttl_minutes = max(1, settings.metrics_ttl_minutes)
     sessionmaker = context.resources.db.get_sessionmaker()
 
     async with sessionmaker() as session:
@@ -45,15 +46,27 @@ async def webapp_report_cleanup_op(context) -> None:
             text(
                 """
                 DELETE FROM aida.webapp_report_results
-                WHERE expires_at < now() - (:grace_hours * interval '1 hour')
+                WHERE
+                    (
+                        report_type = 'metrics'
+                        AND created_at < now() - (:metrics_ttl_minutes * interval '1 minute')
+                    )
+                    OR (
+                        report_type <> 'metrics'
+                        AND expires_at < now() - (:grace_hours * interval '1 hour')
+                    )
                 """
             ),
-            {"grace_hours": grace_hours},
+            {
+                "grace_hours": grace_hours,
+                "metrics_ttl_minutes": metrics_ttl_minutes,
+            },
         )
         await session.commit()
 
     context.log.info(
-        "webapp_report_cleanup: deleted %s rows older than expires_at + %s hours",
+        "webapp_report_cleanup: deleted %s rows; metrics_ttl=%s minutes, grace=%s hours",
         result.rowcount,
+        metrics_ttl_minutes,
         grace_hours,
     )

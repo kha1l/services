@@ -7,7 +7,7 @@ from config import schedule_config
 from .jobs import webapp_report_cleanup_job
 
 
-_cfg = schedule_config("webapp_report_cleanup", default_cron="0 3,15 * * *")
+_cfg = schedule_config("webapp_report_cleanup", default_cron="*/15 * * * *")
 
 webapp_report_cleanup_schedule = None
 if _cfg.enabled:
