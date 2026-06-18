@@ -75,6 +75,11 @@
 
 - `DBASE_*` или `DATABASE_URL` для PostgreSQL
 - `DODO_API_*` для retry/timeout клиента Dodo API
+- `DODOVKUS_TOKEN_*` для дешифрования токенов перед Dodo API и сохранения
+  обновленных токенов через `dodovkus/auth`
+- `DODO_APP_<APPLICATION_NAME>_SECRET` и `DODO_APP_<APPLICATION_NAME>_VERIFIER`
+  для refresh-token flow Dodo OAuth; в Kubernetes они должны приходить из
+  `servises-secret`
 - `RABBIT_*` для публикации в RabbitMQ
 - `SCHEDULE_<JOB>_*` для расписаний Dagster
 

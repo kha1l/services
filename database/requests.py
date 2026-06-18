@@ -16,6 +16,7 @@ from database.models import (
     UserAccount,
     ServiceAlert,
 )
+from resources.token_auth import token_auth_client
 from iso3166 import countries
 
 
@@ -33,13 +34,13 @@ async def select_all_tokens(session):
     for t in tokens:
         await session.refresh(t, ["application", "account"])
 
+    await token_auth_client().decrypt_tokens(tokens)
     return tokens
 
 
 async def update_token(session, token: Token, access: str, refresh: str):
-    """Обновляет access/refresh токен и помечает аккаунт активным."""
-    token.access = access
-    token.refresh = refresh
+    """Обновляет access/refresh через dodovkus/auth и помечает аккаунт активным."""
+    await token_auth_client().persist_updated_token(token, access=access, refresh=refresh)
     token.last_update = datetime.now()
     if token.account is not None:
         token.account.active = True

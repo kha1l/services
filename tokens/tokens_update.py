@@ -1,6 +1,8 @@
 """Обновление OAuth-токенов Dodo и lifecycle-логика по stale токенам."""
 
 import asyncio
+import os
+import re
 import aiohttp
 from datetime import datetime
 
@@ -22,6 +24,74 @@ from shared.job_guard import safe_rollback
 from shared.token_alerts import alert_reference_time, should_delete, should_notify
 
 logger = get_logger(__name__)
+
+APPLICATION_ENV_ALIASES = {
+    "aida": ("AIDA",),
+    "aidametrics": ("AIDAMETRICS", "METRICS"),
+    "core": ("CORE",),
+    "kado": ("KADO",),
+}
+
+
+def _normalize_env_key(value: object) -> str:
+    """Приводит имя приложения к безопасному env-суффиксу."""
+    normalized = re.sub(r"[^A-Za-z0-9]+", "_", str(value or "").strip()).strip("_")
+    return normalized.upper()
+
+
+def _env_first(names: list[str]) -> str | None:
+    """Возвращает первое непустое значение из env."""
+    for name in names:
+        value = os.getenv(name)
+        if value is not None and value != "":
+            return value
+    return None
+
+
+def _application_secret_env_names(app: Application, field: str) -> list[str]:
+    """Строит список поддерживаемых env-имен для секрета приложения."""
+    field_key = field.upper()
+    app_name = str(getattr(app, "name", "") or "").strip().lower()
+    app_key = _normalize_env_key(app_name)
+    app_id = getattr(app, "id", None)
+
+    names: list[str] = []
+    if app_key:
+        names.extend(
+            [
+                f"DODO_APP_{app_key}_{field_key}",
+                f"DODO_APPLICATION_{app_key}_{field_key}",
+                f"{field_key}_{app_key}",
+            ]
+        )
+    for alias in APPLICATION_ENV_ALIASES.get(app_name, ()):
+        names.extend(
+            [
+                f"DODO_APP_{alias}_{field_key}",
+                f"DODO_APPLICATION_{alias}_{field_key}",
+                f"{field_key}_{alias}",
+            ]
+        )
+    if app_id is not None:
+        names.extend(
+            [
+                f"DODO_APP_{app_id}_{field_key}",
+                f"DODO_APPLICATION_{app_id}_{field_key}",
+            ]
+        )
+    return list(dict.fromkeys(names))
+
+
+def get_application_secret_value(app: Application, field: str) -> str:
+    """Берет OAuth secret/verifier приложения из env/Kubernetes Secret, а не из БД."""
+    names = _application_secret_env_names(app, field)
+    value = _env_first(names)
+    if value is None:
+        app_name = getattr(app, "name", None) or getattr(app, "id", "unknown")
+        raise RuntimeError(
+            f"Missing OAuth env value for application {app_name!r}: set one of {', '.join(names)}"
+        )
+    return value
 
 
 class TokenRefresher:
@@ -108,7 +178,7 @@ class TokenRefresher:
         data = {
             "grant_type": "refresh_token",
             "redirect_uri": redirect,
-            "code_verifier": app.verifier,
+            "code_verifier": get_application_secret_value(app, "verifier"),
             "refresh_token": token.refresh,
         }
 
@@ -116,7 +186,7 @@ class TokenRefresher:
             "Content-Type": "application/x-www-form-urlencoded",
         }
 
-        auth = aiohttp.BasicAuth(app.client_id, app.secret)
+        auth = aiohttp.BasicAuth(app.client_id, get_application_secret_value(app, "secret"))
         return await self.dodo_api.post_json(
             url,
             data=data,

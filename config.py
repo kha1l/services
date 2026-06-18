@@ -76,6 +76,16 @@ class DodoApiSettings:
 
 
 @dataclass(frozen=True)
+class DodovkusTokenAuthSettings:
+    """Настройки сервиса шифрования/дешифрования Dodo-токенов."""
+
+    decrypt_url: str
+    update_url: str
+    timeout_seconds: int
+    trust_env: bool
+
+
+@dataclass(frozen=True)
 class RabbitMQSettings:
     """Настройки публикации в RabbitMQ."""
 
@@ -160,6 +170,22 @@ def dodo_api_settings() -> DodoApiSettings:
         retry_delay_seconds=_env_int("DODO_API_RETRY_DELAY_SECONDS", 60),
         user_agent=_env("DODO_API_USER_AGENT", "DodoVkus") or "DodoVkus",
         trust_env=_env_bool("DODO_API_TRUST_ENV", True),
+    )
+
+
+def dodovkus_token_auth_settings() -> DodovkusTokenAuthSettings:
+    """Читает настройки endpoint'ов dodovkus/auth для токенов."""
+    return DodovkusTokenAuthSettings(
+        decrypt_url=(
+            _env("DODOVKUS_TOKEN_DECRYPT_URL", "https://dodovkus.ru/auth/decrypt-tokens/")
+            or "https://dodovkus.ru/auth/decrypt-tokens/"
+        ),
+        update_url=(
+            _env("DODOVKUS_TOKEN_UPDATE_URL", "https://dodovkus.ru/auth/updated-tokens/")
+            or "https://dodovkus.ru/auth/updated-tokens/"
+        ),
+        timeout_seconds=_env_int("DODOVKUS_TOKEN_AUTH_TIMEOUT_SECONDS", 30),
+        trust_env=_env_bool("DODOVKUS_TOKEN_AUTH_TRUST_ENV", _env_bool("DODO_API_TRUST_ENV", True)),
     )
 
 
