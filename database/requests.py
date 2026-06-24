@@ -38,6 +38,25 @@ async def select_all_tokens(session):
     return tokens
 
 
+async def select_marketplace_tokens(session):
+    """Возвращает токены приложений, которые должны проверять marketplace-подписки."""
+    stmt = (
+        select(Token)
+        .join(Application, Application.id == Token.application_id)
+        .join(Account, Account.id == Token.account_id)
+        .where(Application.on_marketplace.is_(True))
+    )
+
+    result = await session.scalars(stmt)
+    tokens = result.all()
+
+    for t in tokens:
+        await session.refresh(t, ["application", "account"])
+
+    await token_auth_client().decrypt_tokens(tokens)
+    return tokens
+
+
 async def update_token(session, token: Token, access: str, refresh: str):
     """Обновляет access/refresh через dodovkus/auth и помечает аккаунт активным."""
     await token_auth_client().persist_updated_token(token, access=access, refresh=refresh)
@@ -77,12 +96,13 @@ async def select_units(session):
 
 async def insert_unit(session, unit_data: dict):
     """Добавляет новое заведение в локальный справочник."""
+    location = unit_data.get("location") or {}
     new_unit = Unit(
         name=unit_data.get("name"),
         uuid=unit_data.get("id"),
         country=unit_data.get("countryId").lower(),
-        latitude=unit_data.get("location")["latitude"],
-        longitude=unit_data.get("location")["longitude"],
+        latitude=str(location.get("latitude")) if location.get("latitude") is not None else None,
+        longitude=str(location.get("longitude")) if location.get("longitude") is not None else None,
         timezone=unit_data.get("dateTimeInfo")["timeZoneShift"]
     )
     session.add(new_unit)

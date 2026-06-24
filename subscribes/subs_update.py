@@ -10,7 +10,7 @@ from database.requests import (
     insert_unit,
     resolve_service_alert,
     select_account_recipients,
-    select_all_tokens,
+    select_marketplace_tokens,
     select_subscribe_snapshot_for_token,
     select_subscribe_uuids_for_token,
     select_units,
@@ -168,7 +168,7 @@ class SubscribeRefresher:
         """Полностью синхронизирует premium-подписки по всем токенам из БД."""
         try:
             uuids = set(await select_units(session))
-            tokens = await select_all_tokens(session)
+            tokens = await select_marketplace_tokens(session)
         except Exception as exc:  # noqa: BLE001
             logger.error("SUBSCRIBES JOB: failed to load initial data: %s", exc)
             await safe_rollback(session, logger, context="SUBSCRIBES JOB load initial data")
@@ -251,6 +251,11 @@ class SubscribeRefresher:
                     except Exception as e:
                         logger.error(f"incorrect units for {token.id}: {e}")
                         token_failed = True
+                        await safe_rollback(
+                            session,
+                            logger,
+                            context=f"SUBSCRIBES JOB token_id={token.id} units sync",
+                        )
                         await self._handle_failure(session, token, str(e))
                 if not token_failed:
                     existing_uuids = await select_subscribe_uuids_for_token(session, token.id)

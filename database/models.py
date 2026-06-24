@@ -99,6 +99,7 @@ class Application(Base):
     challenge = Column(String(200))
     verifier = Column(String(200))
     scope = Column(String)
+    on_marketplace = Column(Boolean)
 
     tokens = relationship("Token", back_populates="application")
 
