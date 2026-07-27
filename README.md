@@ -107,6 +107,8 @@ dagster job execute -m defs -j franchisee_job
 ## Docker / Kubernetes
 
 Сервис собирается в один Docker-образ и поднимает Dagster gRPC code location.
+Production-образ работает под UID/GID `10001` и содержит доступный для записи
+`DAGSTER_HOME=/opt/dagster/dagster_home` для служебных файлов выполнения Dagster.
 Контейнерная команда:
 
 ```bash
