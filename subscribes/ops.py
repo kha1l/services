@@ -21,17 +21,26 @@ async def run_subscribes_refresh(session_factory, dodo_api, rabbitmq, log=None) 
             try:
                 await refresher.refresh_subscribe(session)
             except Exception as exc:  # noqa: BLE001
-                active_log.error("SUBSCRIBES JOB: unhandled error inside refresh loop: %s", exc)
+                active_log.error(
+                    "SUBSCRIBES JOB: unhandled error inside refresh loop: error_type=%s",
+                    type(exc).__name__,
+                )
                 with contextlib.suppress(Exception):
                     await session.rollback()
         active_log.info("END SUBSCRIBES")
     except Exception as exc:  # noqa: BLE001
-        active_log.error("SUBSCRIBES JOB: failed before completion: %s", exc)
+        active_log.error(
+            "SUBSCRIBES JOB: failed before completion: error_type=%s",
+            type(exc).__name__,
+        )
     finally:
         try:
             await rabbitmq.close_async()
         except Exception as exc:  # noqa: BLE001
-            active_log.error("SUBSCRIBES JOB: failed to close RabbitMQ transport: %s", exc)
+            active_log.error(
+                "SUBSCRIBES JOB: failed to close RabbitMQ transport: error_type=%s",
+                type(exc).__name__,
+            )
 
 
 @op(required_resource_keys={"db", "dodo_api", "rabbitmq"})

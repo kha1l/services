@@ -1,0 +1,4 @@
+# Historical findings only. The service key must remain revoked/rotated;
+# the scheduler entry is a non-secret identifier. Owner: Aleksey; review by: 2026-10-22.
+5235235b45b8e8936a94a71dd61b464c5ec085b4:tokens/schedulers.py:generic-api-key:10
+be1aa82655be99701d4cccc1f7d968651cfba350:resources/token_auth.py:generic-api-key:100

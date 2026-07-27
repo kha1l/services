@@ -21,12 +21,18 @@ async def run_franchisee_refresh(session_factory, dodo_api, log=None) -> None:
             try:
                 await refresher.refresh_franchisee(session)
             except Exception as exc:  # noqa: BLE001
-                active_log.error("FRANCHISEE JOB: unhandled error inside refresh loop: %s", exc)
+                active_log.error(
+                    "FRANCHISEE JOB: unhandled error inside refresh loop: error_type=%s",
+                    type(exc).__name__,
+                )
                 with contextlib.suppress(Exception):
                     await session.rollback()
         active_log.info("END FRANCHISEE")
     except Exception as exc:  # noqa: BLE001
-        active_log.error("FRANCHISEE JOB: failed before completion: %s", exc)
+        active_log.error(
+            "FRANCHISEE JOB: failed before completion: error_type=%s",
+            type(exc).__name__,
+        )
 
 
 @op(required_resource_keys={"db", "dodo_api"})

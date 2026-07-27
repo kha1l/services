@@ -111,7 +111,8 @@ class TokenRefresher:
         """Отправляет уведомление всем получателям аккаунта."""
         recipients = await select_account_recipients(session, token.account_id)
         if not recipients:
-            logger.warning(f"No recipients for token {token.id}")
+            credential_id = token.id
+            logger.warning("No recipients for credential %s", credential_id)
             return
 
         for recipient in recipients:
@@ -126,8 +127,8 @@ class TokenRefresher:
                 )
             except Exception as exc:
                 logger.error(
-                    f"Failed to publish token message for chat {recipient.chat_id}"
-                    f" platform={recipient.platform}: {exc}"
+                    "Failed to publish credential refresh message: error_type=%s",
+                    type(exc).__name__,
                 )
 
     async def _handle_failure(self, session, token: Token, error_text: str) -> None:
@@ -148,6 +149,8 @@ class TokenRefresher:
             await set_account_active(session, token.account_id, False)
 
         if should_delete(reference_time, datetime.now()):
+            credential_id = token.id
+            account_id = token.account_id
             text = (
                 "[servises/tokens]\n"
                 f"Токен для аккаунта {account_name} не обновлялся более 48 часов и был удален.\n"
@@ -156,7 +159,11 @@ class TokenRefresher:
             )
             await self._publish_message(session, token, text)
             await delete_token_with_relations(session, token)
-            logger.warning("Deleted stale token: token_id=%s account_id=%s", token.id, token.account_id)
+            logger.warning(
+                "Deleted stale credential record: credential_id=%s account_id=%s",
+                credential_id,
+                account_id,
+            )
             return
 
         if should_notify(reference_time, datetime.now()) and alert.notified_at is None:
@@ -199,12 +206,16 @@ class TokenRefresher:
         try:
             tokens = await select_all_tokens(session)
         except Exception as exc:  # noqa: BLE001
-            logger.error("TOKENS JOB: failed to load tokens: %s", exc)
+            logger.error(
+                "CREDENTIAL REFRESH JOB: failed to load records: error_type=%s",
+                type(exc).__name__,
+            )
             await safe_rollback(session, logger, context="TOKENS JOB load tokens")
             return
 
         for token in tokens:
             try:
+                credential_id = token.id
                 app = token.application
                 account = token.account
                 domain = account.properties.split("/")[0]
@@ -212,8 +223,13 @@ class TokenRefresher:
                 try:
                     resp = await self._refresh_single(token, app, domain)
                 except Exception as e:
-                    logger.error(f"ERROR UPDATE TOKEN {token.id}: {e}")
-                    await self._handle_failure(session, token, str(e))
+                    error_type = type(e).__name__
+                    logger.error(
+                        "Failed to refresh credential %s: error_type=%s",
+                        credential_id,
+                        error_type,
+                    )
+                    await self._handle_failure(session, token, error_type)
                     continue
 
                 # Токен и last_update обновляются одним commit внутри DB helper.
@@ -233,10 +249,10 @@ class TokenRefresher:
                 await asyncio.sleep(self.delay)
             except Exception as exc:  # noqa: BLE001
                 logger.error(
-                    "TOKENS JOB: unexpected error for token_id=%s account_id=%s: %s",
+                    "CREDENTIAL REFRESH JOB: unexpected error for credential_id=%s account_id=%s: error_type=%s",
                     getattr(token, "id", "unknown"),
                     getattr(token, "account_id", "unknown"),
-                    exc,
+                    type(exc).__name__,
                 )
                 await safe_rollback(
                     session,

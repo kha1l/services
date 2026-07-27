@@ -7,7 +7,7 @@ from config import schedule_config
 from .jobs import tokens_job
 
 
-_cfg = schedule_config("tokens", default_cron="0 */6 * * *")
+_cfg = schedule_config("tokens", default_cron="0 */6 * * *")  # gitleaks:allow -- cron expression
 
 tokens_schedule = None
 if _cfg.enabled:

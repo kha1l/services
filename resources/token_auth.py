@@ -21,6 +21,7 @@ class TokenAuthError(RuntimeError):
 class DodovkusTokenAuthClient:
     """HTTP-клиент для endpoints `/auth/decrypt-tokens/` и `/auth/updated-tokens/`."""
 
+    default_service_key: str
     decrypt_url: str
     update_url: str
     timeout_seconds: int
@@ -92,12 +93,11 @@ class DodovkusTokenAuthClient:
             grouped[self._service_key_for_token(token)].append(token)
         return dict(grouped)
 
-    @staticmethod
-    def _service_key_for_token(token: Token) -> str:
+    def _service_key_for_token(self, token: Token) -> str:
         application = getattr(token, "application", None)
         service_key = getattr(application, "client_id", None)
         if not service_key:
-            service_key = "alekseykharlanov8-q96izv0yyp"
+            service_key = self.default_service_key
         return service_key
 
     @staticmethod
@@ -122,6 +122,7 @@ def token_auth_client() -> DodovkusTokenAuthClient:
     """Создает клиент с настройками из env."""
     cfg = dodovkus_token_auth_settings()
     return DodovkusTokenAuthClient(
+        default_service_key=cfg.default_service_key,
         decrypt_url=cfg.decrypt_url,
         update_url=cfg.update_url,
         timeout_seconds=cfg.timeout_seconds,

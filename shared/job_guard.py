@@ -8,4 +8,4 @@ async def safe_rollback(session, logger, *, context: str) -> None:
     try:
         await session.rollback()
     except Exception as exc:  # noqa: BLE001
-        logger.error("%s: rollback failed: %s", context, exc)
+        logger.error("%s: rollback failed: error_type=%s", context, type(exc).__name__)

@@ -10,3 +10,6 @@ __pycache__/
 .python-version
 .qodo
 .dagster_home/
+# Local security scanner output
+/aitriage-reports/
+/security-reports/

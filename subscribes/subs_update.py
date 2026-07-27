@@ -61,7 +61,8 @@ class SubscribeRefresher:
         """Отправляет сервисное сообщение всем пользователям аккаунта."""
         recipients = await select_account_recipients(session, token.account_id)
         if not recipients:
-            logger.warning(f"No recipients for subscribe token {token.id}")
+            credential_id = token.id
+            logger.warning("No recipients for subscription credential %s", credential_id)
             return
 
         for recipient in recipients:
@@ -76,8 +77,8 @@ class SubscribeRefresher:
                 )
             except Exception as exc:
                 logger.error(
-                    f"Failed to publish subscribe message for chat {recipient.chat_id}"
-                    f" platform={recipient.platform}: {exc}"
+                    "Failed to publish subscription message: error_type=%s",
+                    type(exc).__name__,
                 )
 
     async def _handle_failure(self, session, token: Token, error_text: str) -> None:
@@ -170,25 +171,34 @@ class SubscribeRefresher:
             uuids = set(await select_units(session))
             tokens = await select_marketplace_tokens(session)
         except Exception as exc:  # noqa: BLE001
-            logger.error("SUBSCRIBES JOB: failed to load initial data: %s", exc)
+            logger.error(
+                "SUBSCRIBES JOB: failed to load initial data: error_type=%s",
+                type(exc).__name__,
+            )
             await safe_rollback(session, logger, context="SUBSCRIBES JOB load initial data")
             return
 
         for token in tokens:
             try:
+                credential_id = token.id
                 account = token.account
                 domain, _concept_name, _country = self._parse_account_properties(account.properties)
                 existing_snapshot = await select_subscribe_snapshot_for_token(session, token.id)
                 try:
                     resp = await self._refresh_subs(token, domain)
                 except Exception as e:
-                    logger.error(f"ERROR UPDATE TOKEN {token.id}: {e}")
-                    await self._handle_failure(session, token, str(e))
+                    error_type = type(e).__name__
+                    logger.error(
+                        "Failed to refresh subscription credential %s: error_type=%s",
+                        credential_id,
+                        error_type,
+                    )
+                    await self._handle_failure(session, token, error_type)
                     continue
 
                 subs = resp.get("activeUserSubscriptions", [])
                 if not subs:
-                    logger.warning(f"No active subscribes for {token.id}")
+                    logger.warning("No active subscriptions for credential %s", credential_id)
                     # Если Dodo больше не возвращает premium-подписки, удаляем локальный хвост этого токена.
                     existing_uuids = await select_subscribe_uuids_for_token(session, token.id)
                     deleted_unit_uuids = await delete_subscribes_and_orphan_units(session, token.id, existing_uuids)
@@ -228,15 +238,24 @@ class SubscribeRefresher:
                     try:
                         units_response = await self._refresh_units(token, account.properties, units)
                     except Exception as e:
-                        logger.error(f"ERROR UPDATE UNITS {token.id}: {e}")
+                        error_type = type(e).__name__
+                        logger.error(
+                            "Failed to refresh units for credential %s: error_type=%s",
+                            credential_id,
+                            error_type,
+                        )
                         token_failed = True
-                        await self._handle_failure(session, token, str(e))
+                        await self._handle_failure(session, token, error_type)
                         continue
 
                     try:
                         expires = self._parse_expires(expires_str)
                     except Exception as e:
-                        logger.error(f"not convert expiresAt {token.id}: {e}")
+                        logger.error(
+                            "Failed to parse subscription expiry for credential %s: error_type=%s",
+                            credential_id,
+                            type(e).__name__,
+                        )
                         expires = None
 
                     units_info = units_response.get("stores", [])
@@ -249,14 +268,19 @@ class SubscribeRefresher:
                                 uuids.add(unit_id)
                             await insert_subs(session, unit, alias, expires, token.id)
                     except Exception as e:
-                        logger.error(f"incorrect units for {token.id}: {e}")
+                        error_type = type(e).__name__
+                        logger.error(
+                            "Failed to persist units for credential %s: error_type=%s",
+                            credential_id,
+                            error_type,
+                        )
                         token_failed = True
                         await safe_rollback(
                             session,
                             logger,
                             context=f"SUBSCRIBES JOB token_id={token.id} units sync",
                         )
-                        await self._handle_failure(session, token, str(e))
+                        await self._handle_failure(session, token, error_type)
                 if not token_failed:
                     existing_uuids = await select_subscribe_uuids_for_token(session, token.id)
                     stale_uuids = existing_uuids - desired_uuids
@@ -275,10 +299,10 @@ class SubscribeRefresher:
                 await asyncio.sleep(self.delay)
             except Exception as exc:  # noqa: BLE001
                 logger.error(
-                    "SUBSCRIBES JOB: unexpected error for token_id=%s account_id=%s: %s",
+                    "SUBSCRIBES JOB: unexpected error for token_id=%s account_id=%s: error_type=%s",
                     getattr(token, "id", "unknown"),
                     getattr(token, "account_id", "unknown"),
-                    exc,
+                    type(exc).__name__,
                 )
                 await safe_rollback(
                     session,
