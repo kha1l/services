@@ -20,6 +20,7 @@ from database.requests import (
 )
 from messaging import build_payload, RabbitMQPublisher
 from resources.dodo_api import DodoApiClient
+from security_logging import safe_error_type, safe_identifier
 from shared.job_guard import safe_rollback
 from shared.token_alerts import alert_reference_time, should_delete, should_notify
 
@@ -112,7 +113,10 @@ class TokenRefresher:
         recipients = await select_account_recipients(session, token.account_id)
         if not recipients:
             credential_id = token.id
-            logger.warning("No recipients for credential %s", credential_id)
+            logger.warning(
+                "No recipients for credential_hash=%s",
+                safe_identifier(credential_id),
+            )
             return
 
         for recipient in recipients:
@@ -131,17 +135,18 @@ class TokenRefresher:
                     type(exc).__name__,
                 )
 
-    async def _handle_failure(self, session, token: Token, error_text: str) -> None:
+    async def _handle_failure(self, session, token: Token, error_type: str) -> None:
         """Обновляет алерт токена, при необходимости деактивирует аккаунт и удаляет stale токен."""
         account = token.account
         account_name = account.name if account else f"account_id={token.account_id}"
+        normalized_error_type = safe_error_type(error_type)
 
         alert = await touch_service_alert(
             session,
             service="tokens",
             token_id=token.id,
             kind="refresh_failed",
-            error_text=error_text,
+            error_type=normalized_error_type,
         )
         reference_time = alert_reference_time(token.last_update, alert.first_seen_at)
 
@@ -160,9 +165,9 @@ class TokenRefresher:
             await self._publish_message(session, token, text)
             await delete_token_with_relations(session, token)
             logger.warning(
-                "Deleted stale credential record: credential_id=%s account_id=%s",
-                credential_id,
-                account_id,
+                "Deleted stale credential record: credential_hash=%s account_hash=%s",
+                safe_identifier(credential_id),
+                safe_identifier(account_id),
             )
             return
 
@@ -171,7 +176,7 @@ class TokenRefresher:
                 "[servises/tokens]\n"
                 f"Не удалось обновить токен для аккаунта {account_name}.\n"
                 f"token_id={token.id}\n"
-                f"Ошибка: {error_text}"
+                f"Ошибка: {normalized_error_type}"
             )
             await self._publish_message(session, token, text)
             await mark_service_alert_notified(session, alert)
@@ -225,8 +230,8 @@ class TokenRefresher:
                 except Exception as e:
                     error_type = type(e).__name__
                     logger.error(
-                        "Failed to refresh credential %s: error_type=%s",
-                        credential_id,
+                        "Failed to refresh credential_hash=%s: error_type=%s",
+                        safe_identifier(credential_id),
                         error_type,
                     )
                     await self._handle_failure(session, token, error_type)
@@ -241,17 +246,17 @@ class TokenRefresher:
                 )
 
                 logger.info(
-                    "Token updated successfully: token_id=%s account_id=%s",
-                    token.id,
-                    token.account_id,
+                    "Token updated successfully: token_hash=%s account_hash=%s",
+                    safe_identifier(token.id),
+                    safe_identifier(token.account_id),
                 )
                 await resolve_service_alert(session, "tokens", token.id, "refresh_failed")
                 await asyncio.sleep(self.delay)
             except Exception as exc:  # noqa: BLE001
                 logger.error(
-                    "CREDENTIAL REFRESH JOB: unexpected error for credential_id=%s account_id=%s: error_type=%s",
-                    getattr(token, "id", "unknown"),
-                    getattr(token, "account_id", "unknown"),
+                    "CREDENTIAL REFRESH JOB: unexpected error for credential_hash=%s account_hash=%s: error_type=%s",
+                    safe_identifier(getattr(token, "id", None)),
+                    safe_identifier(getattr(token, "account_id", None)),
                     type(exc).__name__,
                 )
                 await safe_rollback(

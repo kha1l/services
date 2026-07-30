@@ -5,6 +5,23 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from security_logging import redact_text
+
+
+class _SensitiveDataFilter(logging.Filter):
+    """Очищает уже отформатированное сообщение перед записью на диск."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        message = redact_text(record.getMessage())
+        if record.exc_info:
+            error_type = record.exc_info[0].__name__
+            message = f"{message} error_type={error_type}"
+        record.msg = message
+        record.args = ()
+        record.exc_info = None
+        record.exc_text = None
+        return True
+
 
 def get_logger(logger_name: str, file_mode: str = "a"):
     """Возвращает файловый логгер и переиспользует уже созданный handler."""
@@ -19,6 +36,7 @@ def get_logger(logger_name: str, file_mode: str = "a"):
 
         file_handler = logging.FileHandler(logs_dir / f"{logger_name}.log", mode=file_mode)
         file_handler.setLevel(logging.INFO)
+        file_handler.addFilter(_SensitiveDataFilter())
         file_handler.setFormatter(
             logging.Formatter(
                 "%(filename)s:%(lineno)d #%(levelname)-8s "

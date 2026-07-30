@@ -5,6 +5,7 @@ import asyncio
 from logger import get_logger
 from database.requests import select_uuids, select_all_tokens, insert_unit_franchisee
 from resources.dodo_api import DodoApiClient, DodoApiError
+from security_logging import safe_identifier
 from shared.job_guard import safe_rollback
 
 logger = get_logger(__name__)
@@ -42,8 +43,8 @@ class FranchiseeRefresher:
                     )
                 except DodoApiError as exc:
                     logger.error(
-                        "Failed to load franchise data for credential %s: error_type=%s",
-                        credential_id,
+                        "Failed to load franchise data for credential_hash=%s: error_type=%s",
+                        safe_identifier(credential_id),
                         type(exc).__name__,
                     )
                     continue
@@ -55,11 +56,14 @@ class FranchiseeRefresher:
                             try:
                                 await insert_unit_franchisee(session, unit)
                                 uuids.add(unit_id)
-                                logger.info(f'Inserted unit {unit_id}')
+                                logger.info(
+                                    "Inserted unit_hash=%s",
+                                    safe_identifier(unit_id),
+                                )
                             except Exception as exc:
                                 logger.error(
-                                    "Failed to insert unit %s: error_type=%s",
-                                    unit_id,
+                                    "Failed to insert unit_hash=%s: error_type=%s",
+                                    safe_identifier(unit_id),
                                     type(exc).__name__,
                                 )
                                 await safe_rollback(
@@ -71,9 +75,9 @@ class FranchiseeRefresher:
                             await asyncio.sleep(self.delay)
             except Exception as exc:  # noqa: BLE001
                 logger.error(
-                    "FRANCHISEE JOB: unexpected error for token_id=%s account_id=%s: error_type=%s",
-                    getattr(token, "id", "unknown"),
-                    getattr(token, "account_id", "unknown"),
+                    "FRANCHISEE JOB: unexpected error for token_hash=%s account_hash=%s: error_type=%s",
+                    safe_identifier(getattr(token, "id", None)),
+                    safe_identifier(getattr(token, "account_id", None)),
                     type(exc).__name__,
                 )
                 await safe_rollback(

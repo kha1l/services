@@ -19,6 +19,7 @@ from database.requests import (
 from logger import get_logger
 from messaging import RabbitMQPublisher, build_payload
 from resources.dodo_api import DodoApiClient
+from security_logging import safe_error_type, safe_identifier
 from shared.job_guard import safe_rollback
 
 logger = get_logger(__name__)
@@ -62,7 +63,10 @@ class SubscribeRefresher:
         recipients = await select_account_recipients(session, token.account_id)
         if not recipients:
             credential_id = token.id
-            logger.warning("No recipients for subscription credential %s", credential_id)
+            logger.warning(
+                "No recipients for subscription credential_hash=%s",
+                safe_identifier(credential_id),
+            )
             return
 
         for recipient in recipients:
@@ -81,14 +85,14 @@ class SubscribeRefresher:
                     type(exc).__name__,
                 )
 
-    async def _handle_failure(self, session, token: Token, error_text: str) -> None:
+    async def _handle_failure(self, session, token: Token, error_type: str) -> None:
         """Фиксирует алерт сбоя подписок без деактивации аккаунта и удаления токена."""
         await touch_service_alert(
             session,
             service="subscribes",
             token_id=token.id,
             kind="refresh_failed",
-            error_text=error_text,
+            error_type=safe_error_type(error_type),
         )
 
     async def _publish_premium_changes(self, session, token: Token, changed_lines: list[str]) -> None:
@@ -189,8 +193,8 @@ class SubscribeRefresher:
                 except Exception as e:
                     error_type = type(e).__name__
                     logger.error(
-                        "Failed to refresh subscription credential %s: error_type=%s",
-                        credential_id,
+                        "Failed to refresh subscription credential_hash=%s: error_type=%s",
+                        safe_identifier(credential_id),
                         error_type,
                     )
                     await self._handle_failure(session, token, error_type)
@@ -198,7 +202,10 @@ class SubscribeRefresher:
 
                 subs = resp.get("activeUserSubscriptions", [])
                 if not subs:
-                    logger.warning("No active subscriptions for credential %s", credential_id)
+                    logger.warning(
+                        "No active subscriptions for credential_hash=%s",
+                        safe_identifier(credential_id),
+                    )
                     # Если Dodo больше не возвращает premium-подписки, удаляем локальный хвост этого токена.
                     existing_uuids = await select_subscribe_uuids_for_token(session, token.id)
                     deleted_unit_uuids = await delete_subscribes_and_orphan_units(session, token.id, existing_uuids)
@@ -240,8 +247,8 @@ class SubscribeRefresher:
                     except Exception as e:
                         error_type = type(e).__name__
                         logger.error(
-                            "Failed to refresh units for credential %s: error_type=%s",
-                            credential_id,
+                            "Failed to refresh units for credential_hash=%s: error_type=%s",
+                            safe_identifier(credential_id),
                             error_type,
                         )
                         token_failed = True
@@ -252,8 +259,8 @@ class SubscribeRefresher:
                         expires = self._parse_expires(expires_str)
                     except Exception as e:
                         logger.error(
-                            "Failed to parse subscription expiry for credential %s: error_type=%s",
-                            credential_id,
+                            "Failed to parse subscription expiry for credential_hash=%s: error_type=%s",
+                            safe_identifier(credential_id),
                             type(e).__name__,
                         )
                         expires = None
@@ -270,8 +277,8 @@ class SubscribeRefresher:
                     except Exception as e:
                         error_type = type(e).__name__
                         logger.error(
-                            "Failed to persist units for credential %s: error_type=%s",
-                            credential_id,
+                            "Failed to persist units for credential_hash=%s: error_type=%s",
+                            safe_identifier(credential_id),
                             error_type,
                         )
                         token_failed = True
@@ -299,9 +306,9 @@ class SubscribeRefresher:
                 await asyncio.sleep(self.delay)
             except Exception as exc:  # noqa: BLE001
                 logger.error(
-                    "SUBSCRIBES JOB: unexpected error for token_id=%s account_id=%s: error_type=%s",
-                    getattr(token, "id", "unknown"),
-                    getattr(token, "account_id", "unknown"),
+                    "SUBSCRIBES JOB: unexpected error for token_hash=%s account_hash=%s: error_type=%s",
+                    safe_identifier(getattr(token, "id", None)),
+                    safe_identifier(getattr(token, "account_id", None)),
                     type(exc).__name__,
                 )
                 await safe_rollback(

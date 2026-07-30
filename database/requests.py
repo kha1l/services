@@ -17,6 +17,7 @@ from database.models import (
     ServiceAlert,
 )
 from resources.token_auth import token_auth_client
+from security_logging import safe_error_type
 from iso3166 import countries
 
 
@@ -248,8 +249,9 @@ async def ensure_service_alerts_table(session) -> None:
     await session.commit()
 
 
-async def touch_service_alert(session, service: str, token_id: int, kind: str, error_text: str) -> ServiceAlert:
+async def touch_service_alert(session, service: str, token_id: int, kind: str, error_type: str) -> ServiceAlert:
     """Открывает или обновляет алерт сервиса по токену."""
+    normalized_error_type = safe_error_type(error_type)
     await ensure_service_alerts_table(session)
     stmt = (
         select(ServiceAlert)
@@ -271,7 +273,7 @@ async def touch_service_alert(session, service: str, token_id: int, kind: str, e
             kind=kind,
             first_seen_at=now,
             last_seen_at=now,
-            last_error=error_text,
+            last_error=normalized_error_type,
         )
         session.add(alert)
     else:
@@ -280,7 +282,7 @@ async def touch_service_alert(session, service: str, token_id: int, kind: str, e
             alert.notified_at = None
             alert.resolved_at = None
         alert.last_seen_at = now
-        alert.last_error = error_text
+        alert.last_error = normalized_error_type
 
     await session.commit()
     await session.refresh(alert)
