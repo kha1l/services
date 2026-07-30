@@ -4,11 +4,13 @@ from dagster import op
 from sqlalchemy import text
 
 from config import webapp_report_cleanup_settings
+from security_logging import safe_context_logger
 
 
 @op(required_resource_keys={"db"})
 async def webapp_report_cleanup_op(context) -> None:
     """Удаляет результаты WebApp-отчетов после истечения TTL."""
+    log = safe_context_logger(context)
     settings = webapp_report_cleanup_settings()
     grace_hours = max(0, settings.grace_hours)
     metrics_ttl_minutes = max(1, settings.metrics_ttl_minutes)
@@ -64,7 +66,7 @@ async def webapp_report_cleanup_op(context) -> None:
         )
         await session.commit()
 
-    context.log.info(
+    log.info(
         "webapp_report_cleanup: deleted %s rows; metrics_ttl=%s minutes, grace=%s hours",
         result.rowcount,
         metrics_ttl_minutes,

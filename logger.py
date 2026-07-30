@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 
-from security_logging import redact_text
+from security_logging import build_structured_log, redact_text
 
 
 class _SensitiveDataFilter(logging.Filter):
@@ -16,11 +17,30 @@ class _SensitiveDataFilter(logging.Filter):
         if record.exc_info:
             error_type = record.exc_info[0].__name__
             message = f"{message} error_type={error_type}"
+            record.error_type = error_type
         record.msg = message
         record.args = ()
         record.exc_info = None
         record.exc_text = None
         return True
+
+
+class _StructuredJsonFormatter(logging.Formatter):
+    """Render an already-redacted record using the common fixed schema."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        event = build_structured_log(
+            level=record.levelname,
+            message=record.getMessage(),
+            component=record.name,
+            error_type=getattr(record, "error_type", None),
+        )
+        return json.dumps(
+            event,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
 
 
 def get_logger(logger_name: str, file_mode: str = "a"):
@@ -37,11 +57,6 @@ def get_logger(logger_name: str, file_mode: str = "a"):
         file_handler = logging.FileHandler(logs_dir / f"{logger_name}.log", mode=file_mode)
         file_handler.setLevel(logging.INFO)
         file_handler.addFilter(_SensitiveDataFilter())
-        file_handler.setFormatter(
-            logging.Formatter(
-                "%(filename)s:%(lineno)d #%(levelname)-8s "
-                "[%(asctime)s] - %(name)s - %(message)s"
-            )
-        )
+        file_handler.setFormatter(_StructuredJsonFormatter())
         loader_logger.addHandler(file_handler)
     return loader_logger

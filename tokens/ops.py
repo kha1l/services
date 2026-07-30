@@ -5,6 +5,7 @@ import contextlib
 from dagster import op
 
 from logger import get_logger
+from security_logging import safe_context_logger
 
 from .tokens_update import TokenRefresher
 
@@ -46,9 +47,10 @@ async def run_tokens_refresh(session_factory, dodo_api, rabbitmq, log=None) -> N
 @op(required_resource_keys={"db", "dodo_api", "rabbitmq"})
 async def tokens_op(context) -> None:
     """Запускает обновление refresh/access токенов."""
+    log = safe_context_logger(context)
     await run_tokens_refresh(
         context.resources.db.get_sessionmaker(),
         context.resources.dodo_api,
         context.resources.rabbitmq,
-        context.log,
+        log,
     )

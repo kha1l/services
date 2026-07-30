@@ -5,6 +5,7 @@ import contextlib
 from dagster import op
 
 from logger import get_logger
+from security_logging import safe_context_logger
 
 from .franchisee_update import FranchiseeRefresher
 
@@ -38,8 +39,9 @@ async def run_franchisee_refresh(session_factory, dodo_api, log=None) -> None:
 @op(required_resource_keys={"db", "dodo_api"})
 async def franchisee_op(context) -> None:
     """Запускает обновление справочника франшиз."""
+    log = safe_context_logger(context)
     await run_franchisee_refresh(
         context.resources.db.get_sessionmaker(),
         context.resources.dodo_api,
-        context.log,
+        log,
     )
