@@ -3,7 +3,7 @@
 from datetime import datetime
 from dataclasses import dataclass
 
-from sqlalchemy import delete, exists, select, text
+from sqlalchemy import delete, exists, func, or_, select, text
 
 from database.models import (
     Token,
@@ -15,6 +15,7 @@ from database.models import (
     User,
     UserAccount,
     ServiceAlert,
+    ReportOrder,
 )
 from resources.token_auth import token_auth_client
 from security_logging import safe_error_type
@@ -183,6 +184,67 @@ async def delete_subscribes_and_orphan_units(session, token_id: int, unit_uuids:
 
     await session.commit()
     return set(orphaned_unit_uuids)
+
+
+async def prune_report_order_units_for_account(
+    session,
+    account_id: int | None,
+    candidate_unit_uuids: set[str],
+) -> tuple[int, int, int]:
+    """Удаляет из настроек отчётов только что утраченные аккаунтом точки.
+
+    Возвращает количество обновлённых и удалённых настроек, а также число
+    удалённых ссылок на заведения. Порядок доступных UUID сохраняется.
+    """
+    if account_id is None or not candidate_unit_uuids:
+        return 0, 0, 0
+
+    still_accessible_stmt = (
+        select(Subscribe.uuid)
+        .join(Token, Token.id == Subscribe.token_id)
+        .where(
+            Token.account_id == account_id,
+            Subscribe.uuid.in_(candidate_unit_uuids),
+            or_(Subscribe.expires.is_(None), Subscribe.expires >= func.now()),
+        )
+        .distinct()
+    )
+    still_accessible_uuids = {
+        str(unit_uuid)
+        for unit_uuid in (await session.execute(still_accessible_stmt)).scalars().all()
+        if unit_uuid
+    }
+    inaccessible_uuids = candidate_unit_uuids - still_accessible_uuids
+    if not inaccessible_uuids:
+        return 0, 0, 0
+
+    orders_stmt = select(ReportOrder).where(ReportOrder.account_id == account_id)
+    orders = (await session.execute(orders_stmt)).scalars().all()
+
+    updated_orders = 0
+    deleted_orders = 0
+    removed_references = 0
+    for order in orders:
+        original_uuids = [str(unit_uuid) for unit_uuid in (order.uuids or []) if unit_uuid]
+        retained_uuids = list(
+            dict.fromkeys(
+                unit_uuid
+                for unit_uuid in original_uuids
+                if unit_uuid not in inaccessible_uuids
+            )
+        )
+        removed_references += len(original_uuids) - len(retained_uuids)
+        if retained_uuids == original_uuids:
+            continue
+        if retained_uuids:
+            order.uuids = retained_uuids
+            updated_orders += 1
+        else:
+            await session.delete(order)
+            deleted_orders += 1
+
+    await session.commit()
+    return updated_orders, deleted_orders, removed_references
 
 
 async def select_account_chat_ids(session, account_id: int) -> list[int]:

@@ -8,6 +8,7 @@ from database.requests import (
     delete_subscribes_and_orphan_units,
     insert_subs,
     insert_unit,
+    prune_report_order_units_for_account,
     resolve_service_alert,
     select_account_recipients,
     select_marketplace_tokens,
@@ -210,6 +211,21 @@ class SubscribeRefresher:
                     existing_uuids = await select_subscribe_uuids_for_token(session, token.id)
                     deleted_unit_uuids = await delete_subscribes_and_orphan_units(session, token.id, existing_uuids)
                     uuids.difference_update(deleted_unit_uuids)
+                    updated_orders, deleted_orders, removed_references = (
+                        await prune_report_order_units_for_account(
+                            session,
+                            token.account_id,
+                            existing_uuids,
+                        )
+                    )
+                    if removed_references:
+                        logger.info(
+                            "Pruned inaccessible report units: account_hash=%s updated_orders=%s deleted_orders=%s removed_references=%s",
+                            safe_identifier(token.account_id),
+                            updated_orders,
+                            deleted_orders,
+                            removed_references,
+                        )
                     changed_lines = self._build_premium_change_lines(
                         existing_snapshot=existing_snapshot,
                         desired_aliases={},
@@ -294,6 +310,22 @@ class SubscribeRefresher:
                     if stale_uuids:
                         deleted_unit_uuids = await delete_subscribes_and_orphan_units(session, token.id, stale_uuids)
                         uuids.difference_update(deleted_unit_uuids)
+                    if stale_uuids:
+                        updated_orders, deleted_orders, removed_references = (
+                            await prune_report_order_units_for_account(
+                                session,
+                                token.account_id,
+                                stale_uuids,
+                            )
+                        )
+                        if removed_references:
+                            logger.info(
+                                "Pruned inaccessible report units: account_hash=%s updated_orders=%s deleted_orders=%s removed_references=%s",
+                                safe_identifier(token.account_id),
+                                updated_orders,
+                                deleted_orders,
+                                removed_references,
+                            )
                     # Сообщение собираем только после успешной синхронизации токена.
                     changed_lines = self._build_premium_change_lines(
                         existing_snapshot=existing_snapshot,

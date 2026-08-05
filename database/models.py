@@ -3,6 +3,7 @@
 from sqlalchemy import (
     Column, String, Integer, BigInteger, Boolean, TIMESTAMP, ForeignKey, Text, UniqueConstraint
 )
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -159,3 +160,18 @@ class ServiceAlert(Base):
     last_error = Column(Text)
 
     token = relationship("Token", back_populates="service_alerts")
+
+
+class ReportOrder(Base):
+    """Настройка регулярного отчёта из схемы `aida`."""
+
+    __tablename__ = "orders"
+    __table_args__ = {"schema": "aida"}
+
+    id = Column(Integer, primary_key=True)
+    post = Column(String(100), nullable=False)
+    uuids = Column(ARRAY(String))
+    chat_id = Column(BigInteger, nullable=False)
+    topic_id = Column(BigInteger)
+    account_id = Column(Integer, ForeignKey("special.accounts.id"))
+    params = Column(String(200))
